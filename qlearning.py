@@ -4,7 +4,7 @@ import typing as t
 import numpy as np
 import gymnasium as gym
 
-
+import math
 Action = int
 State = int
 Info = t.TypedDict("Info", {"prob": float, "action_mask": np.ndarray})
@@ -49,6 +49,9 @@ class QLearningAgent:
         """
         value = 0.0
         # BEGIN SOLUTION
+        if not self._qvalues[state]:
+            return 0.0
+        value = max(self._qvalues[state].values())
         # END SOLUTION
         return value
 
@@ -63,6 +66,15 @@ class QLearningAgent:
         """
         q_value = 0.0
         # BEGIN SOLUTION
+        current_q = self.get_qvalue(state, action)
+        next_max_q = self.get_value(next_state)
+        # Normaliser la récompense
+        normalized_reward = reward / 20.0  # Supposons que la récompense maximale est 20
+        target = normalized_reward + self.gamma * next_max_q
+        td_error = target - current_q
+        # Clipper le TD error
+        td_error = max(min(td_error, 1), -1)
+        q_value = current_q + self.learning_rate * td_error
         # END SOLUTION
 
         self.set_qvalue(state, action, q_value)
@@ -91,6 +103,30 @@ class QLearningAgent:
         action = self.legal_actions[0]
 
         # BEGIN SOLUTION
+        if not hasattr(self, 'epsilon'):
+            self.epsilon = 1.0
+        if not hasattr(self, 'update_count'):
+            self.update_count = 0
+
+        # Décroissance exponentielle de epsilon
+        self.epsilon = max(0.01, min(1.0, 1.0 - math.log10((self.update_count + 1) / 25)))
+        self.update_count += 1
+
+        if random.random() < self.epsilon:
+            # Exploration: choisir une action aléatoire, mais favoriser les actions moins explorées
+            action_counts = [self.get_qvalue(state, a) for a in self.legal_actions]
+            min_count = min(action_counts)
+            actions = [a for a, count in zip(self.legal_actions, action_counts) if count == min_count]
+            action = random.choice(actions)
+        else:
+            # Exploitation: choisir la meilleure action
+            action = self.get_best_action(state)
         # END SOLUTION
 
         return action
+    def reset(self):
+        # BEGIN SOLUTION
+        self._qvalues = defaultdict(lambda: defaultdict(int))
+        self.update_count = 0
+        self.epsilon = 1.0
+        # END SOLUTION

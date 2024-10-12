@@ -47,6 +47,9 @@ class SarsaAgent:
         """
         value = 0.0
         # BEGIN SOLUTION
+        if not self._qvalues[state]:
+            return 0.0
+        value = max(self._qvalues[state].values())
         # END SOLUTION
         return value
 
@@ -61,6 +64,20 @@ class SarsaAgent:
         """
         q_value = 0.0
         # BEGIN SOLUTION
+        next_action = self.get_action(next_state)
+        current_q = self.get_qvalue(state, action)
+        next_q = self.get_qvalue(next_state, next_action)
+        
+        # Normaliser la récompense
+        normalized_reward = reward / 20.0  # Supposons que la récompense maximale est 20
+        
+        td_target = normalized_reward + self.gamma * next_q
+        td_error = td_target - current_q
+        
+        # Clipper le TD error
+        td_error = max(min(td_error, 1), -1)
+        
+        q_value = current_q + self.learning_rate * td_error
         # END SOLUTION
 
         self.set_qvalue(state, action, q_value)
@@ -83,6 +100,23 @@ class SarsaAgent:
         action = self.legal_actions[0]
 
         # BEGIN SOLUTION
+        if not hasattr(self, 'epsilon'):
+            self.epsilon = 1.0
+        if not hasattr(self, 'epsilon_decay'):
+            self.epsilon_decay = 0.9995
+        if not hasattr(self, 'min_epsilon'):
+            self.min_epsilon = 0.01
+
+        self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
+
+        if random.random() < self.epsilon:
+            # Exploration: choisir une action aléatoire, mais favoriser les actions moins explorées
+            action_counts = [self.get_qvalue(state, a) for a in self.legal_actions]
+            min_count = min(action_counts)
+            actions = [a for a, count in zip(self.legal_actions, action_counts) if count == min_count]
+            return random.choice(actions)
+        else:
+            return self.get_best_action(state)
         # END SOLUTION
 
         return action
